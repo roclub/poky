@@ -208,7 +208,7 @@ class SignatureGeneratorOEBasicHashMixIn(object):
 
     def get_cached_unihash(self, tid):
         if tid in self.lockedhashes and self.lockedhashes[tid] and not self._internal:
-            return self.lockedhashes[tid]
+            return self.lockedhashes[tid], False
         return super().get_cached_unihash(tid)
 
     def dump_sigtask(self, fn, task, stampbase, runtime):
