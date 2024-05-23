@@ -80,7 +80,7 @@ class SignatureGenerator(object):
         self.runtaskdeps = {}
         self.file_checksum_values = {}
         self.taints = {}
-        self.unitaskhashes = {}
+        self.hashserv_cache = {}
         self.tidtopn = {}
         self.setscenetasks = set()
 
@@ -184,19 +184,19 @@ class SignatureGenerator(object):
         return
 
     def get_taskdata(self):
-        return (self.runtaskdeps, self.taskhash, self.unihash, self.file_checksum_values, self.taints, self.basehash, self.unitaskhashes, self.tidtopn, self.setscenetasks)
+        return (self.runtaskdeps, self.taskhash, self.unihash, self.file_checksum_values, self.taints, self.basehash, self.hashserv_cache, self.tidtopn, self.setscenetasks)
 
     def set_taskdata(self, data):
-        self.runtaskdeps, self.taskhash, self.unihash, self.file_checksum_values, self.taints, self.basehash, self.unitaskhashes, self.tidtopn, self.setscenetasks = data
+        self.runtaskdeps, self.taskhash, self.unihash, self.file_checksum_values, self.taints, self.basehash, self.hashserv_cache, self.tidtopn, self.setscenetasks = data
 
     def reset(self, data):
         self.__init__(data)
 
     def get_taskhashes(self):
-        return self.taskhash, self.unihash, self.unitaskhashes, self.tidtopn
+        return self.taskhash, self.unihash, self.hashserv_cache, self.tidtopn
 
     def set_taskhashes(self, hashes):
-        self.taskhash, self.unihash, self.unitaskhashes, self.tidtopn = hashes
+        self.taskhash, self.unihash, self.hashserv_cache, self.tidtopn = hashes
 
     def save_unitaskhashes(self):
         return
@@ -238,8 +238,8 @@ class SignatureGeneratorBasic(SignatureGenerator):
         else:
             self.checksum_cache = None
 
-        self.unihash_cache = bb.cache.SimpleCache("3")
-        self.unitaskhashes = self.unihash_cache.init_cache(data, "bb_unihashes.dat", {})
+        self.unihash_cache = bb.cache.SimpleCache("4")
+        self.hashserv_cache = self.unihash_cache.init_cache(data, "bb_unihashes.dat", {})
         self.localdirsexclude = (data.getVar("BB_SIGNATURE_LOCAL_DIRS_EXCLUDE") or "CVS .bzr .git .hg .osc .p4 .repo .svn").split()
         self.tidtopn = {}
 
@@ -416,7 +416,7 @@ class SignatureGeneratorBasic(SignatureGenerator):
             bb.fetch2.fetcher_parse_done()
 
     def save_unitaskhashes(self):
-        self.unihash_cache.save(self.unitaskhashes)
+        self.unihash_cache.save(self.hashserv_cache)
 
     def copy_unitaskhashes(self, targetdir):
         self.unihash_cache.copyfile(targetdir)
@@ -630,10 +630,10 @@ class SignatureGeneratorUniHashMixIn(object):
 
         return super().get_stampfile_hash(tid)
 
-    def set_unihash(self, tid, unihash):
+    def set_unihash(self, tid, unihash, present):
         (mc, fn, taskname, taskfn) = bb.runqueue.split_tid_mcfn(tid)
         key = mc + ":" + self.tidtopn[tid] + ":" + taskname
-        self.unitaskhashes[key] = (self.taskhash[tid], unihash)
+        self.hashserv_cache[key] = (self.taskhash[tid], unihash, present)
         self.unihash[tid] = unihash
 
     def _get_unihash(self, tid, checkkey=None):
@@ -641,11 +641,11 @@ class SignatureGeneratorUniHashMixIn(object):
             return None
         (mc, fn, taskname, taskfn) = bb.runqueue.split_tid_mcfn(tid)
         key = mc + ":" + self.tidtopn[tid] + ":" + taskname
-        if key not in self.unitaskhashes:
+        if key not in self.hashserv_cache:
             return None
         if not checkkey:
             checkkey = self.taskhash[tid]
-        (key, unihash) = self.unitaskhashes[key]
+        (key, unihash, present) = self.hashserv_cache[key]
         if key != checkkey:
             return None
         return unihash
@@ -754,12 +754,12 @@ class SignatureGeneratorUniHashMixIn(object):
                 # so it is reported it at debug level 2. If they differ, that
                 # is much more interesting, so it is reported at debug level 1
                 hashequiv_logger.bbdebug((1, 2)[unihash == taskhash], 'Found unihash %s in place of %s for %s from %s' % (unihash, taskhash, tid, self.server))
+                self.set_unihash(tid, unihash, True)
             else:
                 hashequiv_logger.debug2('No reported unihash for %s:%s from %s' % (tid, taskhash, self.server))
                 unihash = taskhash
+                self.set_unihash(tid, unihash, False)
 
-
-            self.set_unihash(tid, unihash)
             self.unihash[tid] = unihash
             result[tid] = unihash
 
@@ -835,7 +835,7 @@ class SignatureGeneratorUniHashMixIn(object):
                 if new_unihash != unihash:
                     hashequiv_logger.debug('Task %s unihash changed %s -> %s by server %s' % (taskhash, unihash, new_unihash, self.server))
                     bb.event.fire(bb.runqueue.taskUniHashUpdate(mcfn + ':do_' + task, new_unihash), d)
-                    self.set_unihash(tid, new_unihash)
+                    self.set_unihash(tid, new_unihash, True)
                     d.setVar('BB_UNIHASH', new_unihash)
                 else:
                     hashequiv_logger.debug('Reported task %s as unihash %s to %s' % (taskhash, unihash, self.server))
@@ -875,7 +875,7 @@ class SignatureGeneratorUniHashMixIn(object):
                 hashequiv_logger.verbose('Task %s unihash %s unchanged by server' % (tid, finalunihash))
             elif finalunihash == wanted_unihash:
                 hashequiv_logger.verbose('Task %s unihash changed %s -> %s as wanted' % (tid, current_unihash, finalunihash))
-                self.set_unihash(tid, finalunihash)
+                self.set_unihash(tid, finalunihash, True)
                 return True
             else:
                 # TODO: What to do here?

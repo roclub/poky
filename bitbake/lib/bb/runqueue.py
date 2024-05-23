@@ -2530,7 +2530,7 @@ class RunQueueExecute:
                 for hashtid in torehash:
                     hashequiv_logger.verbose("Task %s unihash changed to %s" % (hashtid, unihash))
                     self.rqdata.runtaskentries[hashtid].unihash = unihash
-                    bb.parse.siggen.set_unihash(hashtid, unihash)
+                    bb.parse.siggen.set_unihash(hashtid, unihash, True)
                     toprocess.add(hashtid)
                 if torehash:
                     # Need to save after set_unihash above
