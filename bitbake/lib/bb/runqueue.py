@@ -1274,8 +1274,11 @@ class RunQueueData:
 
         bb.parse.siggen.set_setscene_tasks(self.runq_setscene_tids)
 
+        #bb.warn("Entering loop")
         starttime = time.time()
         lasttime = starttime
+        self.queries = 0
+        self.present = 0
 
         # Iterate over the task list and call into the siggen code
         dealtwith = set()
@@ -1298,8 +1301,10 @@ class RunQueueData:
                 dealtwith.add(tid)
                 todeal.remove(tid)
                 if tid in unihashes:
+                    self.queries += 1
                     self.runtaskentries[tid].unihash, present = unihashes[tid]
                     if present:
+                        self.present += 1
                         self.hashserve_valid.add(tid)
                 else:
                     taskhash = self.runtaskentries[tid].hash
@@ -1310,7 +1315,7 @@ class RunQueueData:
 
             if time.time() > (lasttime + 30):
                 lasttime = time.time()
-                hashequiv_logger.verbose("Initial setup loop progress: %s of %s in %s" % (len(todeal), len(self.runtaskentries), lasttime - starttime))
+                hashequiv_logger.verbose("Initial setup loop progress: %s of %s in %s (%s %s %s)" % (len(todeal), len(self.runtaskentries), lasttime - starttime, self.queries, self.present, bb.parse.siggen.made))
 
         endtime = time.time()
         if (endtime-starttime > 60):
@@ -2584,6 +2589,7 @@ class RunQueueExecute:
             elif self.rqdata.runtaskentries[p].depends.isdisjoint(total):
                 next.add(p)
 
+        #bb.warn("Entering rehash loop")
         starttime = time.time()
         lasttime = starttime
 

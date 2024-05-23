@@ -550,6 +550,7 @@ class SignatureGeneratorUniHashMixIn(object):
         self.username = None
         self.password = None
         self.env = {}
+        self.made = 0
 
         origenv = data.getVar("BB_ORIGENV")
         for e in HASHSERV_ENVVARS:
@@ -729,6 +730,8 @@ class SignatureGeneratorUniHashMixIn(object):
 
         if len(queries) == 0:
             return result
+
+        self.made += len(queries)
 
         if self.max_parallel <= 1 or len(queries) <= 1:
             # No parallelism required. Make the query serially with the single client
