@@ -112,16 +112,19 @@ class SignatureGenerator(object):
                 self.datacaches[mc].stamp_extrainfo[mcfn][t] = flag
 
     def get_cached_unihash(self, tid):
-        return None
+        return None, False
 
-    def get_unihash(self, tid):
-        unihash = self.get_cached_unihash(tid)
-        if unihash:
+    def get_unihash(self, tid, presenceinfo=False):
+        unihash, present = self.get_cached_unihash(tid)
+        if not unihash:
+            unihash, present = self.taskhash[tid], False
+        if presenceinfo:
+            return unihash, present
+        else:
             return unihash
-        return self.taskhash[tid]
 
     def get_unihashes(self, tids):
-        return {tid: self.get_unihash(tid) for tid in tids}
+        return {tid: self.get_unihash(tid, True) for tid in tids}
 
     def prep_taskhash(self, tid, deps, dataCaches):
         return
@@ -624,7 +627,7 @@ class SignatureGeneratorUniHashMixIn(object):
             # If a unique hash is reported, use it as the stampfile hash. This
             # ensures that if a task won't be re-run if the taskhash changes,
             # but it would result in the same output hash
-            unihash = self._get_unihash(tid)
+            unihash, _ = self._get_unihash(tid)
             if unihash is not None:
                 return unihash
 
@@ -638,17 +641,17 @@ class SignatureGeneratorUniHashMixIn(object):
 
     def _get_unihash(self, tid, checkkey=None):
         if tid not in self.tidtopn:
-            return None
+            return None, False
         (mc, fn, taskname, taskfn) = bb.runqueue.split_tid_mcfn(tid)
         key = mc + ":" + self.tidtopn[tid] + ":" + taskname
         if key not in self.hashserv_cache:
-            return None
+            return None, False
         if not checkkey:
             checkkey = self.taskhash[tid]
         (key, unihash, present) = self.hashserv_cache[key]
         if key != checkkey:
-            return None
-        return unihash
+            return None, False
+        return unihash, present
 
     def get_cached_unihash(self, tid):
         taskhash = self.taskhash[tid]
@@ -656,16 +659,16 @@ class SignatureGeneratorUniHashMixIn(object):
         # If its not a setscene task we can return
         if self.setscenetasks and tid not in self.setscenetasks:
             self.unihash[tid] = None
-            return taskhash
+            return taskhash, True
 
         # TODO: This cache can grow unbounded. It probably only needs to keep
         # for each task
-        unihash =  self._get_unihash(tid)
+        unihash, present =  self._get_unihash(tid)
         if unihash is not None:
             self.unihash[tid] = unihash
-            return unihash
+            return unihash, present
 
-        return None
+        return None, False
 
     def _get_method(self, tid):
         method = self.method
@@ -703,8 +706,10 @@ class SignatureGeneratorUniHashMixIn(object):
 
         return result
 
-    def get_unihash(self, tid):
-        return self.get_unihashes([tid])[tid]
+    def get_unihash(self, tid, presenceinfo=False):
+        if presenceinfo:
+            return self.get_unihashes([tid])[tid]
+        return self.get_unihashes([tid])[tid][0]
 
     def get_unihashes(self, tids):
         """
@@ -716,9 +721,9 @@ class SignatureGeneratorUniHashMixIn(object):
         query_result = {}
 
         for tid in tids:
-            unihash = self.get_cached_unihash(tid)
+            unihash, present = self.get_cached_unihash(tid)
             if unihash:
-                result[tid] = unihash
+                result[tid] = (unihash, present)
             else:
                 queries[tid] = (self._get_method(tid), self.taskhash[tid])
 
@@ -754,14 +759,15 @@ class SignatureGeneratorUniHashMixIn(object):
                 # so it is reported it at debug level 2. If they differ, that
                 # is much more interesting, so it is reported at debug level 1
                 hashequiv_logger.bbdebug((1, 2)[unihash == taskhash], 'Found unihash %s in place of %s for %s from %s' % (unihash, taskhash, tid, self.server))
-                self.set_unihash(tid, unihash, True)
+                present = True
             else:
                 hashequiv_logger.debug2('No reported unihash for %s:%s from %s' % (tid, taskhash, self.server))
                 unihash = taskhash
-                self.set_unihash(tid, unihash, False)
+                present = False
 
+            self.set_unihash(tid, unihash, present)
             self.unihash[tid] = unihash
-            result[tid] = unihash
+            result[tid] = (unihash, present)
 
         return result
 
@@ -784,7 +790,7 @@ class SignatureGeneratorUniHashMixIn(object):
             return
 
         # Sanity checks
-        cache_unihash = self._get_unihash(tid, checkkey=taskhash)
+        cache_unihash, _ = self._get_unihash(tid, checkkey=taskhash)
         if cache_unihash is None:
             bb.fatal('%s not in unihash cache. Please report this error' % key)
 

@@ -472,6 +472,7 @@ class RunQueueData:
         self.reset()
 
     def reset(self):
+        self.hashserve_valid = set()
         self.runtaskentries = {}
 
     def runq_depends_names(self, ids):
@@ -1287,11 +1288,23 @@ class RunQueueData:
                     # get_taskhash for a given tid *must* be called before get_unihash* below
                     self.runtaskentries[tid].hash = bb.parse.siggen.get_taskhash(tid, self.runtaskentries[tid].depends, self.dataCaches)
                     ready.add(tid)
-            unihashes = bb.parse.siggen.get_unihashes(ready)
+
+            ready2 = set()
+            for tid in ready:
+                if self.runtaskentries[tid].depends.issubset(self.hashserve_valid):
+                    ready2.add(tid)
+            unihashes = bb.parse.siggen.get_unihashes(ready2)
             for tid in ready:
                 dealtwith.add(tid)
                 todeal.remove(tid)
-                self.runtaskentries[tid].unihash = unihashes[tid]
+                if tid in unihashes:
+                    self.runtaskentries[tid].unihash, present = unihashes[tid]
+                    if present:
+                        self.hashserve_valid.add(tid)
+                else:
+                    taskhash = self.runtaskentries[tid].hash
+                    bb.parse.siggen.set_unihash(tid, taskhash, False)
+                    self.runtaskentries[tid].unihash = taskhash
 
             bb.event.check_for_interrupts(self.cooker.data)
 
@@ -2585,13 +2598,25 @@ class RunQueueExecute:
                 # get_taskhash for a given tid *must* be called before get_unihash* below
                 ready[tid] = bb.parse.siggen.get_taskhash(tid, self.rqdata.runtaskentries[tid].depends, self.rqdata.dataCaches)
 
-            unihashes = bb.parse.siggen.get_unihashes(ready.keys())
+            toquery = set()
+            for tid in ready:
+                if self.rqdata.runtaskentries[tid].depends.issubset(self.rqdata.hashserve_valid):
+                    toquery.add(tid)
+
+            unihashes = bb.parse.siggen.get_unihashes(toquery)
 
             for tid in ready:
                 orighash = self.rqdata.runtaskentries[tid].hash
                 newhash = ready[tid]
                 origuni = self.rqdata.runtaskentries[tid].unihash
-                newuni = unihashes[tid]
+
+                if tid in unihashes:
+                    newuni, present = unihashes[tid]
+                    if present:
+                        self.rqdata.hashserve_valid.add(tid)
+                else:
+                    bb.parse.siggen.set_unihash(tid, origuni, False)
+                    newuni = origuni
 
                 # FIXME, need to check it can come from sstate at all for determinism?
                 remapped = False
@@ -2622,6 +2647,8 @@ class RunQueueExecute:
         endtime = time.time()
         if (endtime-starttime > 60):
             hashequiv_logger.verbose("Rehash loop took more than 60s: %s" % (endtime-starttime))
+
+        bb.parse.siggen.save_unitaskhashes()
 
         if changed:
             for mc in self.rq.worker:
