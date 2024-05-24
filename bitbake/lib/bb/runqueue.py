@@ -1313,12 +1313,12 @@ class RunQueueData:
 
             bb.event.check_for_interrupts(self.cooker.data)
 
-            if time.time() > (lasttime + 30):
+            if time.time() > (lasttime + 1):
                 lasttime = time.time()
                 hashequiv_logger.verbose("Initial setup loop progress: %s of %s in %s (%s %s %s)" % (len(todeal), len(self.runtaskentries), lasttime - starttime, self.queries, self.present, bb.parse.siggen.made))
 
         endtime = time.time()
-        if (endtime-starttime > 60):
+        if (endtime-starttime > 1):
             hashequiv_logger.verbose("Initial setup loop took: %s" % (endtime-starttime))
 
         bb.parse.siggen.writeout_file_checksum_cache()
@@ -2646,13 +2646,13 @@ class RunQueueExecute:
                 next.intersection_update(total)
                 bb.event.check_for_interrupts(self.cooker.data)
 
-                if time.time() > (lasttime + 30):
+                if time.time() > (lasttime + 1):
                     lasttime = time.time()
                     hashequiv_logger.verbose("Rehash loop slow progress: %s in %s" % (len(total), lasttime - starttime))
 
         endtime = time.time()
-        if (endtime-starttime > 60):
-            hashequiv_logger.verbose("Rehash loop took more than 60s: %s" % (endtime-starttime))
+        if (endtime-starttime > 1):
+            hashequiv_logger.verbose("Rehash loop took more than 1s: %s" % (endtime-starttime))
 
         bb.parse.siggen.save_unitaskhashes()
 
