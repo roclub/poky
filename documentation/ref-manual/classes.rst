@@ -159,27 +159,38 @@ software that includes bash-completion data.
 ``bin_package``
 ===============
 
-The :ref:`ref-classes-bin-package` class is a helper class for recipes that extract the
-contents of a binary package (e.g. an RPM) and install those contents
-rather than building the binary from source. The binary package is
-extracted and new packages in the configured output package format are
-created. Extraction and installation of proprietary binaries is a good
-example use for this class.
+The :ref:`ref-classes-bin-package` class is a helper class for recipes, that
+disables the :ref:`ref-tasks-configure` and :ref:`ref-tasks-compile` tasks and
+copies the content of the :term:`S` directory into the :term:`D` directory. This
+is useful for installing binary packages (e.g. RPM packages) by passing the
+package in the :term:`SRC_URI` variable and inheriting this class.
+
+For RPMs and other packages that do not contain a subdirectory, you should set
+the :term:`SRC_URI` option ``subdir`` to :term:`BP` so that the contents are
+extracted to the directory expected by the default value of :term:`S`. For
+example::
+
+   SRC_URI = "https://example.com/downloads/somepackage.rpm;subdir=${BP}"
+
+This class can also be used for tarballs. For example::
+
+   SRC_URI = "file://somepackage.tar.xz;subdir=${BP}"
+
+The :ref:`ref-classes-bin-package` class will copy the extracted content of the
+tarball from :term:`S` to :term:`D`.
+
+This class assumes that the content of the package as installed in :term:`S`
+mirrors the expected layout once installed on the target, which is generally the
+case for binary packages. For example, an RPM package for a library would
+usually contain the ``usr/lib`` directory, and should be extracted to
+``${S}/usr/lib/<library>.so.<version>`` to be installed in :term:`D` correctly.
 
 .. note::
 
-   For RPMs and other packages that do not contain a subdirectory, you
-   should specify an appropriate fetcher parameter to point to the
-   subdirectory. For example, if BitBake is using the Git fetcher (``git://``),
-   the "subpath" parameter limits the checkout to a specific subpath
-   of the tree. Here is an example where ``${BP}`` is used so that the files
-   are extracted into the subdirectory expected by the default value of
-   :term:`S`::
-
-      SRC_URI = "git://example.com/downloads/somepackage.rpm;branch=main;subpath=${BP}"
-
-   See the ":ref:`bitbake-user-manual/bitbake-user-manual-fetching:fetchers`" section in the BitBake User Manual for
-   more information on supported BitBake Fetchers.
+   The extraction of the package passed in :term:`SRC_URI` is not handled by the
+   :ref:`ref-classes-bin-package` class, but rather by the appropriate
+   :ref:`fetcher <bitbake-user-manual/bitbake-user-manual-fetching:fetchers>`
+   depending on the file extension.
 
 .. _ref-classes-binconfig:
 
@@ -1461,12 +1472,8 @@ The tests you can list with the :term:`WARN_QA` and
 -  ``patch-fuzz:`` Checks for fuzz in patch files that may allow
    them to apply incorrectly if the underlying code changes.
 
--  ``patch-status-core:`` Checks that the Upstream-Status is specified
-   and valid in the headers of patches for recipes in the OE-Core layer.
-
--  ``patch-status-noncore:`` Checks that the Upstream-Status is specified
-   and valid in the headers of patches for recipes in layers other than
-   OE-Core.
+-  ``patch-status:`` Checks that the ``Upstream-Status`` is specified and valid
+   in the headers of patches for recipes.
 
 -  ``perllocalpod:`` Checks for ``perllocal.pod`` being erroneously
    installed and packaged by a recipe.
@@ -2608,7 +2615,7 @@ runtime tests for recipes that build software that provides these tests.
 This class is intended to be inherited by individual recipes. However,
 the class' functionality is largely disabled unless "ptest" appears in
 :term:`DISTRO_FEATURES`. See the
-":ref:`dev-manual/packages:testing packages with ptest`"
+":ref:`test-manual/ptest:testing packages with ptest`"
 section in the Yocto Project Development Tasks Manual for more information
 on ptest.
 
@@ -2632,7 +2639,7 @@ Enables package tests (ptests) specifically for GNOME packages, which
 have tests intended to be executed with ``gnome-desktop-testing``.
 
 For information on setting up and running ptests, see the
-":ref:`dev-manual/packages:testing packages with ptest`"
+":ref:`test-manual/ptest:testing packages with ptest`"
 section in the Yocto Project Development Tasks Manual.
 
 .. _ref-classes-python3-dir:
@@ -3205,8 +3212,8 @@ after it is built, you can set :term:`TESTIMAGE_AUTO`::
    TESTIMAGE_AUTO = "1"
 
 For information on how to enable, run, and create new tests, see the
-":ref:`dev-manual/runtime-testing:performing automated runtime testing`"
-section in the Yocto Project Development Tasks Manual.
+":ref:`test-manual/runtime-testing:performing automated runtime testing`"
+section in the Yocto Project Test Environment Manual.
 
 .. _ref-classes-testsdk:
 

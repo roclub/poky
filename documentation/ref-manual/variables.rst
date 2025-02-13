@@ -209,12 +209,11 @@ system and gives an overview of their function and contents.
          SRCREV = "${AUTOREV}"
 
       If you use the previous statement to retrieve the latest version of
-      software, you need to be sure :term:`PV` contains
-      ``${``\ :term:`SRCPV`\ ``}``. For example, suppose you have a kernel
-      recipe that inherits the :ref:`ref-classes-kernel` class and you
-      use the previous statement. In this example, ``${SRCPV}`` does not
-      automatically get into :term:`PV`. Consequently, you need to change
-      :term:`PV` in your recipe so that it does contain ``${SRCPV}``.
+      software, you need to make sure :term:`PV` contains the ``+`` sign so
+      :term:`bitbake` includes source control information to :term:`PKGV` when
+      packaging the recipe. For example::
+
+         PV = "6.10.y+git"
 
       For more information see the
       ":ref:`dev-manual/packages:automatically incrementing a package version number`"
@@ -1678,8 +1677,26 @@ system and gives an overview of their function and contents.
          variable only in certain contexts (e.g. when building for kernel
          and kernel module recipes).
 
+   :term:`CVE_CHECK_CREATE_MANIFEST`
+      Specifies whether to create a CVE manifest to place in the deploy
+      directory. The default is "1".
+
    :term:`CVE_CHECK_IGNORE`
       This variable is deprecated and should be replaced by :term:`CVE_STATUS`.
+
+   :term:`CVE_CHECK_MANIFEST_JSON`
+      Specifies the path to the CVE manifest in JSON format. See
+      :term:`CVE_CHECK_CREATE_MANIFEST`.
+
+   :term:`CVE_CHECK_MANIFEST_JSON_SUFFIX`
+      Allows to modify the JSON manifest suffix. See
+      :term:`CVE_CHECK_MANIFEST_JSON`.
+
+   :term:`CVE_CHECK_REPORT_PATCHED`
+      Specifies whether or not the :ref:`ref-classes-cve-check`
+      class should report patched or ignored CVEs. The default is "1", but you
+      may wish to set it to "0" if you do not need patched or ignored CVEs in
+      the logs.
 
    :term:`CVE_CHECK_SHOW_WARNINGS`
       Specifies whether or not the :ref:`ref-classes-cve-check`
@@ -2500,6 +2517,13 @@ system and gives an overview of their function and contents.
       variable tells the OpenEmbedded build system to prefer the installed
       external tools. See the :ref:`ref-classes-kernel-yocto` class in
       ``meta/classes-recipe`` to see how the variable is used.
+
+   :term:`EXTERNAL_KERNEL_DEVICETREE`
+      When inheriting :ref:`ref-classes-kernel-fitimage` and a
+      :term:`PREFERRED_PROVIDER` for ``virtual/dtb`` set to ``devicetree``, the
+      variable :term:`EXTERNAL_KERNEL_DEVICETREE` can be used to specify a
+      directory containing one or more compiled device tree or device tree
+      overlays to use.
 
    :term:`KERNEL_LOCALVERSION`
       This variable allows to append a string to the version
@@ -5084,7 +5108,7 @@ system and gives an overview of their function and contents.
       The :term:`LINUX_VERSION` variable is used to define :term:`PV`
       for the recipe::
 
-         PV = "${LINUX_VERSION}+git${SRCPV}"
+         PV = "${LINUX_VERSION}+git"
 
    :term:`LINUX_VERSION_EXTENSION`
       A string extension compiled into the version string of the Linux
@@ -5683,6 +5707,13 @@ system and gives an overview of their function and contents.
 
    :term:`OPKG_MAKE_INDEX_EXTRA_PARAMS`
       Specifies extra parameters for the ``opkg-make-index`` command.
+
+   :term:`OPKGBUILDCMD`
+      The variable :term:`OPKGBUILDCMD` specifies the command used to build opkg
+      packages when using the :ref:`ref-classes-package_ipk` class. It is
+      defined in :ref:`ref-classes-package_ipk` as::
+
+          OPKGBUILDCMD ??= 'opkg-build -Z zstd -a "${ZSTD_DEFAULTS}"'
 
    :term:`OVERLAYFS_ETC_DEVICE`
       When the :ref:`ref-classes-overlayfs-etc` class is
@@ -6625,22 +6656,14 @@ system and gives an overview of their function and contents.
          string. You cannot use the wildcard character in any other
          location of the string.
 
-      The specified version is matched against :term:`PV`, which
-      does not necessarily match the version part of the recipe's filename.
-      For example, consider two recipes ``foo_1.2.bb`` and ``foo_git.bb``
-      where ``foo_git.bb`` contains the following assignment::
+      The specified version is matched against :term:`PV`, which does not
+      necessarily match the version part of the recipe's filename.
 
-         PV = "1.1+git${SRCPV}"
-
-      In this case, the correct way to select
-      ``foo_git.bb`` is by using an assignment such as the following::
-
-         PREFERRED_VERSION_foo = "1.1+git%"
-
-      Compare that previous example
-      against the following incorrect example, which does not work::
-
-         PREFERRED_VERSION_foo = "git"
+      If you want to select a recipe named ``foo_git.bb`` which has :term:`PV`
+      set to ``1.2.3+git``, you can do so by setting ```PREFERRED_VERSION_foo``
+      to ``1.2.3%`` (i.e. simply setting ``PREFERRED_VERSION_foo`` to ``git``
+      will not work as the name of the recipe isn't used, but rather its
+      :term:`PV` definition).
 
       Sometimes the :term:`PREFERRED_VERSION` variable can be set by
       configuration files in a way that is hard to change. You can use
@@ -6805,7 +6828,7 @@ system and gives an overview of their function and contents.
 
    :term:`PTEST_ENABLED`
       Specifies whether or not :ref:`Package
-      Test <dev-manual/packages:testing packages with ptest>` (ptest)
+      Test <test-manual/ptest:testing packages with ptest>` (ptest)
       functionality is enabled when building a recipe. You should not set
       this variable directly. Enabling and disabling building Package Tests
       at build time should be done by adding "ptest" to (or removing it
@@ -7725,6 +7748,53 @@ system and gives an overview of their function and contents.
          might break at runtime if the interface of the recipe was changed
          after the other had been built.
 
+   :term:`SIGGEN_LOCKEDSIGS`
+     The list of locked tasks, with the form::
+
+       SIGGEN_LOCKEDSIGS += "<package>:<task>:<signature>"
+
+     If ``<signature>`` exists for the specified ``<task>`` and ``<package>``
+     in the sstate cache, BitBake will use the cached output instead of
+     rebuilding the ``<task>``. If it does not exist, BitBake will build the
+     ``<task>`` and the sstate cache will be used next time.
+
+     Example::
+
+       SIGGEN_LOCKEDSIGS += "bc:do_compile:09772aa4532512baf96d433484f27234d4b7c11dd9cda0d6f56fa1b7ce6f25f0"
+
+     You can obtain the signature of all the tasks for the recipe ``bc`` using::
+
+       bitbake -S none bc
+
+     Then you can look at files in ``build/tmp/stamps/<arch>/bc`` and look for
+     files like: ``<PV>.do_compile.sigdata.09772aa4532512baf96d433484f27234d4b7c11dd9cda0d6f56fa1b7ce6f25f0``.
+
+     Alternatively, you can also use :doc:`bblock </dev-manual/bblock>` to
+     generate this line for you.
+
+   :term:`SIGGEN_LOCKEDSIGS_TASKSIG_CHECK`
+     Specifies the debug level of task signature check. 3 levels are supported:
+
+     * ``info``: displays a "Note" message to remind the user that a task is locked
+       and the current signature matches the locked one.
+     * ``warn``: displays a "Warning" message if a task is locked and the current
+       signature does not match the locked one.
+     * ``error``: same as warn but displays an "Error" message and aborts.
+
+   :term:`SIGGEN_LOCKEDSIGS_TYPES`
+     Allowed overrides for :term:`SIGGEN_LOCKEDSIGS`. This is mainly used
+     for architecture specific locks. A common value for
+     :term:`SIGGEN_LOCKEDSIGS_TYPES` is ``${PACKAGE_ARCHS}``::
+
+       SIGGEN_LOCKEDSIGS_TYPES += "${PACKAGE_ARCHS}"
+
+       SIGGEN_LOCKEDSIGS_core2-64 += "bc:do_compile:09772aa4532512baf96d433484f27234d4b7c11dd9cda0d6f56fa1b7ce6f25f0"
+       SIGGEN_LOCKEDSIGS_cortexa57 += "bc:do_compile:12178eb6d55ef602a8fe638e49862fd247e07b228f0f08967697b655bfe4bb61"
+
+     Here, the ``do_compile`` task from ``bc`` will be locked only for
+     ``core2-64`` and ``cortexa57`` but not for other architectures such as
+     ``mips32r2``.
+
    :term:`SITEINFO_BITS`
       Specifies the number of bits for the target system CPU. The value
       should be either "32" or "64".
@@ -7834,6 +7904,31 @@ system and gives an overview of their function and contents.
       .. note::
 
          You can specify only a single URL in :term:`SOURCE_MIRROR_URL`.
+
+      .. note::
+
+         If the mirror is protected behind a username and password, the
+         :term:`build host` needs to be configured so the :term:`build system
+         <OpenEmbedded Build System>` is able to fetch from the mirror.
+
+         The recommended way to do that is by setting the following parameters
+         in ``$HOME/.netrc`` (``$HOME`` being the :term:`build host` home
+         directory)::
+
+            machine example.com
+            login <user>
+            password <password>
+
+         This file requires permissions set to ``400`` or ``600`` to prevent
+         other users from reading the file::
+
+            chmod 600 "$HOME/.netrc"
+
+         Another method to configure the username and password is from the URL
+         in :term:`SOURCE_MIRROR_URL` directly, with the ``user`` and ``pswd``
+         parameters::
+
+            SOURCE_MIRROR_URL = "http://example.com/my_source_mirror;user=<user>;pswd=<password>"
 
    :term:`SPDX_ARCHIVE_PACKAGED`
       This option allows to add to :term:`SPDX` output compressed archives
@@ -8115,21 +8210,23 @@ system and gives an overview of their function and contents.
       (SCM).
 
    :term:`SRCPV`
-      Returns the version string of the current package. This string is
-      used to help define the value of :term:`PV`.
+      The variable :term:`SRCPV` is deprecated. It was previously used to
+      include source control information in :term:`PV` for :term:`bitbake` to
+      work correctly but this is no longer a requirement. Source control
+      information will be automatically included by :term:`bitbake` in the
+      variable :term:`PKGV` during packaging if the ``+`` sign is present in
+      :term:`PV`.
 
-      The :term:`SRCPV` variable is defined in the ``meta/conf/bitbake.conf``
-      configuration file in the :term:`Source Directory` as
-      follows::
+      .. note::
 
-         SRCPV = "${@bb.fetch2.get_srcrev(d)}"
+         The :term:`SRCPV` variable used to be defined in the
+         ``meta/conf/bitbake.conf`` configuration file in the :term:`Source
+         Directory` as follows::
 
-      Recipes that need to define :term:`PV` do so with the help of the
-      :term:`SRCPV`. For example, the ``ofono`` recipe (``ofono_git.bb``)
-      located in ``meta/recipes-connectivity`` in the Source Directory
-      defines :term:`PV` as follows::
+            SRCPV = "${@bb.fetch2.get_srcrev(d)}"
 
-         PV = "0.12-git${SRCPV}"
+         The ``get_srcrev`` function can still be used to include source control
+         information in variables manually.
 
    :term:`SRCREV`
       The revision of the source code used to build the package. This
@@ -8239,6 +8336,34 @@ system and gives an overview of their function and contents.
          SSTATE_MIRRORS ?= "\
              file://.* https://someserver.tld/share/sstate/PATH;downloadfilename=PATH \
              file://.* file:///some-local-dir/sstate/PATH"
+
+      .. note::
+
+         If the mirror is protected behind a username and password, the
+         :term:`build host` needs to be configured so the :term:`build system
+         <OpenEmbedded Build System>` is able to download the sstate cache using
+         authentication.
+
+         The recommended way to do that is by setting the following parameters
+         in ``$HOME/.netrc`` (``$HOME`` being the :term:`build host` home
+         directory)::
+
+            machine someserver.tld
+            login <user>
+            password <password>
+
+         This file requires permissions set to ``400`` or ``600`` to prevent
+         other users from reading the file::
+
+            chmod 600 "$HOME/.netrc"
+
+         Another method to configure the username and password is from the
+         URL in :term:`SSTATE_MIRRORS` directly, with the ``user`` and ``pswd``
+         parameters::
+
+            SSTATE_MIRRORS ?= "\
+                file://.* https://someserver.tld/share/sstate/PATH;user=<user>;pswd=<password>;downloadfilename=PATH \
+            "
 
       The Yocto Project actually shares the cache data objects built by its
       autobuilder::
@@ -9018,8 +9143,8 @@ system and gives an overview of their function and contents.
       file.
 
       For more information on testing images, see the
-      ":ref:`dev-manual/runtime-testing:performing automated runtime testing`"
-      section in the Yocto Project Development Tasks Manual.
+      ":ref:`test-manual/runtime-testing:performing automated runtime testing`"
+      section in the Yocto Project Test Environment Manual.
 
    :term:`TEST_SERIALCONTROL_CMD`
       For automated hardware testing, specifies the command to use to
@@ -9090,8 +9215,8 @@ system and gives an overview of their function and contents.
          TEST_SUITES = "test_A test_B"
 
       For more information on testing images, see the
-      ":ref:`dev-manual/runtime-testing:performing automated runtime testing`"
-      section in the Yocto Project Development Tasks Manual.
+      ":ref:`test-manual/runtime-testing:performing automated runtime testing`"
+      section in the Yocto Project Test Environment Manual.
 
    :term:`TEST_TARGET`
       Specifies the target controller to use when running tests against a
@@ -9109,8 +9234,8 @@ system and gives an overview of their function and contents.
       You can provide the following arguments with :term:`TEST_TARGET`:
 
       -  *"qemu":* Boots a QEMU image and runs the tests. See the
-         ":ref:`dev-manual/runtime-testing:enabling runtime tests on qemu`" section
-         in the Yocto Project Development Tasks Manual for more
+         ":ref:`test-manual/runtime-testing:enabling runtime tests on qemu`" section
+         in the Yocto Project Test Environment Manual for more
          information.
 
       -  *"simpleremote":* Runs the tests on target hardware that is
@@ -9125,8 +9250,8 @@ system and gives an overview of their function and contents.
             ``meta/lib/oeqa/controllers/simpleremote.py``.
 
       For information on running tests on hardware, see the
-      ":ref:`dev-manual/runtime-testing:enabling runtime tests on hardware`"
-      section in the Yocto Project Development Tasks Manual.
+      ":ref:`test-manual/runtime-testing:enabling runtime tests on hardware`"
+      section in the Yocto Project Test Environment Manual.
 
    :term:`TEST_TARGET_IP`
       The IP address of your hardware under test. The :term:`TEST_TARGET_IP`
@@ -9162,9 +9287,14 @@ system and gives an overview of their function and contents.
 
       For more information
       on enabling, running, and writing these tests, see the
-      ":ref:`dev-manual/runtime-testing:performing automated runtime testing`"
-      section in the Yocto Project Development Tasks Manual and the
+      ":ref:`test-manual/runtime-testing:performing automated runtime testing`"
+      section in the Yocto Project Test Environment Manual and the
       ":ref:`ref-classes-testimage`" section.
+
+   :term:`TESTIMAGE_FAILED_QA_ARTIFACTS`
+      When using the :ref:`ref-classes-testimage` class, the variable
+      :term:`TESTIMAGE_FAILED_QA_ARTIFACTS`  lists space-separated paths on the
+      target to retrieve onto the host.
 
    :term:`THISDIR`
       The directory in which the file BitBake is currently parsing is
