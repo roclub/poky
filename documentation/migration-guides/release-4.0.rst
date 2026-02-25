@@ -31,3 +31,11 @@ Release 4.0 (kirkstone)
    release-notes-4.0.22
    release-notes-4.0.23
    release-notes-4.0.24
+   release-notes-4.0.25
+   release-notes-4.0.26
+   release-notes-4.0.27
+   release-notes-4.0.28
+   release-notes-4.0.29
+   release-notes-4.0.30
+   release-notes-4.0.31
+   release-notes-4.0.32
