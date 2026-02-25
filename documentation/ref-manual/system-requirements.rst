@@ -58,36 +58,35 @@ Supported Linux Distributions
 Currently, the &DISTRO; release ("&DISTRO_NAME;") of the Yocto Project is
 supported on the following distributions:
 
--  Ubuntu 20.04 (LTS)
-
--  Ubuntu 22.04 (LTS)
-
--  Ubuntu 23.04
-
--  Fedora 38
-
--  Fedora 39
-
--  CentOS Stream 8
-
--  Debian GNU/Linux 11 (Bullseye)
-
--  Debian GNU/Linux 12 (Bookworm)
-
--  OpenSUSE Leap 15.4
+..
+   Can be generated with yocto-autobuilder-helper's scripts/yocto-supported-distros:
+   yocto-supported-distros --release scarthgap --config yocto-autobuilder2/config.py --output-format docs --poky-distros
 
 -  AlmaLinux 8
-
 -  AlmaLinux 9
-
--  Rocky 9
+-  Debian 11
+-  Debian 12
+-  Fedora 39
+-  Fedora 40
+-  Fedora 41
+-  Rocky Linux 8
+-  Rocky Linux 9
+-  Ubuntu 20.04 (LTS)
+-  Ubuntu 22.04 (LTS)
+-  Ubuntu 24.04 (LTS)
+-  Ubuntu 24.10
 
 The following distribution versions are still tested, even though the
 organizations publishing them no longer make updates publicly available:
 
--  Ubuntu 18.04 (LTS)
+..
+   This list contains EOL distros that are still tested on the Autobuilder
+   (meaning there are running workers).
+   See https://endoflife.date for information of EOL releases.
 
--  Ubuntu 23.04
+-  Fedora 39
+-  Fedora 40
+-  Ubuntu 20.04 (LTS)
 
 Note that the Yocto Project doesn't have access to private updates
 that some of these versions may have. Therefore, our testing has
@@ -96,7 +95,15 @@ limited value if you have access to such updates.
 Finally, here are the distribution versions which were previously
 tested on former revisions of "&DISTRO_NAME;", but no longer are:
 
-*This list is currently empty*
+..
+   Can be generated with yocto-autobuilder-helper's scripts/yocto-supported-distros.
+   yocto-supported-distros --release scarthgap --config yocto-autobuilder2/config.py --output-format docs --old-distros
+
+-  CentOS Stream 8
+-  Fedora 38
+-  OpenSUSE Leap 15.4
+-  Ubuntu 18.04
+-  Ubuntu 23.04
 
 .. note::
 
@@ -371,7 +378,7 @@ If you would prefer not to use the ``install-buildtools`` script, you can instea
 download and run a pre-built :term:`buildtools` installer yourself with the following
 steps:
 
-#. Go to :yocto_dl:`/releases/yocto/yocto-&DISTRO;/buildtools/`, locate and
+#. Go to :yocto_dl:`/releases/yocto/&DISTRO_REL_LATEST_TAG;/buildtools/`, locate and
    download the ``.sh`` file corresponding to your host architecture
    and to :term:`buildtools`, :term:`buildtools-extended` or :term:`buildtools-make`.
 
